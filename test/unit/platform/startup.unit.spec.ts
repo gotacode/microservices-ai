@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { server, start } from '../src/index';
+import { server, start } from '../../../src/index';
 
 describe('index start', () => {
   it('calls start and handles listen success', async () => {
@@ -33,7 +33,7 @@ describe('index start', () => {
     let threw = false;
     try {
       await start();
-    } catch (err) {
+    } catch {
       threw = true;
     }
     expect(threw).toBe(true);

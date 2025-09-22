@@ -28,7 +28,7 @@ export const rateLimiterHook = async (request: any, reply: any) => {
         }
       }
     }
-  } catch (err) {
+  } catch {
     // allow through on errors in limiter
   }
 };

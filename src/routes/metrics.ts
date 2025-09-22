@@ -8,7 +8,7 @@ export default function registerMetrics(server: any) {
     try {
       const metrics = await registry.metrics();
       reply.type('text/plain; version=0.0.4').send(metrics);
-    } catch (err) {
+    } catch {
       reply.code(500).send({ error: 'could not collect metrics' });
     }
   });

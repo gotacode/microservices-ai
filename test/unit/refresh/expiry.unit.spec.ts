@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { storeRefreshToken, validateRefreshToken, __getRefreshMap } from '../src/stores/refresh';
+import { storeRefreshToken, validateRefreshToken, __getRefreshMap } from '../../../src/stores/refresh';
 
 describe('refresh store expiry', () => {
   it('returns null for expired tokens and removes them', async () => {

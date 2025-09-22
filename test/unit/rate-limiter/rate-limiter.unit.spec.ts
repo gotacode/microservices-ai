@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { rateLimiterHook } from '../src/middleware/rateLimiter';
+import { rateLimiterHook } from '../../../src/middleware/rateLimiter';
 
 // We test the in-memory path by calling the hook with a fake request object
 describe('rate limiter (in-memory)', () => {

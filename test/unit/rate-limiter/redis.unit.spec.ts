@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import * as redisClient from '../src/plugins/redisClient';
-import { rateLimiterHook } from '../src/middleware/rateLimiter';
+import * as redisClient from '../../../src/plugins/redisClient';
+import { rateLimiterHook } from '../../../src/middleware/rateLimiter';
 
 // Simulate redis-backed limiter by stubbing the redis client methods
 describe('rate limiter redis path', () => {

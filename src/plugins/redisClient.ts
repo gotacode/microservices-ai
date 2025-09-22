@@ -15,13 +15,12 @@ const initClient = () => {
       };
     } else {
       // require lazily so tests without ioredis installed don't fail
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const Redis = require('ioredis');
       if (REDIS_URL) {
         client = new Redis(REDIS_URL);
       }
     }
-  } catch (err) {
+  } catch {
     // optional dependency missing; fall back to null client
     client = null;
   }
