@@ -1,5 +1,11 @@
 import { server } from '../index';
-import { APIGatewayProxyEvent, Context, APIGatewayProxyResult, APIGatewayProxyEventHeaders } from 'aws-lambda';
+import {
+  APIGatewayProxyEvent,
+  Context,
+  APIGatewayProxyResult,
+  APIGatewayProxyEventHeaders,
+  APIGatewayProxyEventMultiValueQueryStringParameters,
+} from 'aws-lambda';
 import logger from '../logger';
 
 // Adapt AWS API Gateway event to Fastify using server.inject
@@ -18,6 +24,58 @@ const mapHeaders = (headers?: APIGatewayProxyEventHeaders) => {
   return mapped;
 };
 
+const mapQueryString = (
+  single?: Record<string, string | undefined>,
+  multi?: APIGatewayProxyEventMultiValueQueryStringParameters,
+) => {
+  if (!single && !multi) {
+    return undefined;
+  }
+  const query: Record<string, string | string[]> = {};
+  if (multi) {
+    for (const [key, values] of Object.entries(multi)) {
+      if (values !== undefined) {
+        query[key] = values;
+      }
+    }
+  }
+  if (single) {
+    for (const [key, value] of Object.entries(single)) {
+      if (value !== undefined) {
+        query[key] = value;
+      }
+    }
+  }
+  return Object.keys(query).length > 0 ? query : undefined;
+};
+
+const parsePayload = (event: APIGatewayProxyEvent) => {
+  if (!event.body) {
+    return undefined;
+  }
+
+  if (event.isBase64Encoded) {
+    return Buffer.from(event.body, 'base64');
+  }
+
+  const headers = mapHeaders(event.headers);
+  const contentType = headers['content-type'];
+
+  if (contentType && contentType.includes('application/json')) {
+    try {
+      return JSON.parse(event.body);
+    } catch (error) {
+      logger.warn({ err: error }, 'failed to parse JSON payload, falling back to raw body');
+    }
+  }
+
+  try {
+    return JSON.parse(event.body);
+  } catch {
+    return event.body;
+  }
+};
+
 export const handler = async (event: APIGatewayProxyEvent, _context: Context): Promise<ProxyResponse> => {
   await server.ready();
 
@@ -26,8 +84,8 @@ export const handler = async (event: APIGatewayProxyEvent, _context: Context): P
   const response = await server.inject({
     method: event.httpMethod,
     url: event.path ?? '/',
-    query: event.queryStringParameters ?? undefined,
-    payload: event.body ? JSON.parse(event.body) : undefined,
+    query: mapQueryString(event.queryStringParameters ?? undefined, event.multiValueQueryStringParameters ?? undefined),
+    payload: parsePayload(event),
     headers: mapHeaders(event.headers),
   });
 
