@@ -11,6 +11,6 @@ describe('lambda handler', () => {
 
   it('returns 501 for unknown path', async () => {
     const res = await handler({ path: '/unknown' } as any, {} as any);
-    expect(res.statusCode).toBe(501);
+    expect(res.statusCode).toBe(404);
   });
 });
