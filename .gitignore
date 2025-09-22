@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.vscode/
+coverage/
+.DS_Store
+.nyc_output
+.idea/
