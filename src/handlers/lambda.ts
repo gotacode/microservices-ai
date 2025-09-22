@@ -1,24 +1,39 @@
 import { server } from '../index';
-import { APIGatewayProxyEvent, Context, APIGatewayProxyResult } from 'aws-lambda';
+import { APIGatewayProxyEvent, Context, APIGatewayProxyResult, APIGatewayProxyEventHeaders } from 'aws-lambda';
+import logger from '../logger';
 
-// A minimal adapter to run Fastify inside AWS Lambda (API Gateway v2)
-export const handler = async (event: APIGatewayProxyEvent, _context: Context): Promise<APIGatewayProxyResult> => {
-  // Reuse the server across invocations to improve cold start
+// Adapt AWS API Gateway event to Fastify using server.inject
+type ProxyResponse = APIGatewayProxyResult;
+
+const mapHeaders = (headers?: APIGatewayProxyEventHeaders) => {
+  if (!headers) {
+    return {};
+  }
+  const mapped: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (value !== undefined) {
+      mapped[key.toLowerCase()] = value;
+    }
+  }
+  return mapped;
+};
+
+export const handler = async (event: APIGatewayProxyEvent, _context: Context): Promise<ProxyResponse> => {
   await server.ready();
 
-  // Allow Fastify to handle the request by creating a raw Node request/response might be heavy;
-  // for now return a simple health for demonstration.
-  if (event.path === '/health') {
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ status: 'ok' }),
-      headers: { 'Content-Type': 'application/json' },
-    };
-  }
+  logger.debug({ path: event.path, method: event.httpMethod }, 'lambda handler invoked');
+
+  const response = await server.inject({
+    method: event.httpMethod,
+    url: event.path ?? '/',
+    query: event.queryStringParameters ?? undefined,
+    payload: event.body ? JSON.parse(event.body) : undefined,
+    headers: mapHeaders(event.headers),
+  });
 
   return {
-    statusCode: 501,
-    body: JSON.stringify({ error: 'Not implemented in lambda adapter yet' }),
-    headers: { 'Content-Type': 'application/json' },
+    statusCode: response.statusCode,
+    body: response.body,
+    headers: response.headers as Record<string, string>,
   };
 };

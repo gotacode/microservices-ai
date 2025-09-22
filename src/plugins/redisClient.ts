@@ -1,27 +1,35 @@
+import { loadConfig } from '../config';
+import logger from '../logger';
+
 let client: any = null;
+
+const log = logger.child({ module: 'redisClient' });
 
 const initClient = () => {
   client = null;
-  const REDIS_URL = process.env.REDIS_URL;
+  const cfg = loadConfig();
+  const redisUrl = cfg.redis.url;
   try {
-    // Allow tests to inject a fake ioredis via env flag
     if (process.env.__TEST_IOREDIS === '1') {
+      log.debug('Using test Redis stub');
       client = {
-        url: REDIS_URL || 'mock',
+        url: redisUrl || 'mock',
         setex: async () => {},
         get: async () => null,
         incr: async () => 1,
         expire: async () => {},
       };
     } else {
-      // require lazily so tests without ioredis installed don't fail
       const Redis = require('ioredis');
-      if (REDIS_URL) {
-        client = new Redis(REDIS_URL);
+      if (redisUrl) {
+        log.info({ url: redisUrl }, 'Initialising Redis client');
+        client = new Redis(redisUrl);
+      } else {
+        log.debug('No Redis URL provided; Redis client disabled');
       }
     }
-  } catch {
-    // optional dependency missing; fall back to null client
+  } catch (error) {
+    log.debug({ err: error }, 'Unable to initialise Redis client, falling back to in-memory');
     client = null;
   }
 };
