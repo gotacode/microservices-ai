@@ -1,4 +1,4 @@
-import redis from '../plugins/redisClient';
+import { getRedisClient } from '../plugins/redisClient';
 
 const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX || 100);
 const RATE_LIMIT_WINDOW_SEC = 60; // 1 minute
@@ -7,6 +7,7 @@ const rateMap = new Map<string, { count: number; resetAt: number }>();
 export const rateLimiterHook = async (request: any, reply: any) => {
   try {
     const ip = (request.ip || request.socket?.remoteAddress || 'anonymous') as string;
+    const redis = getRedisClient();
     if (redis) {
       const key = `rl:${ip}`;
       const cur = await redis.incr(key);
@@ -28,7 +29,7 @@ export const rateLimiterHook = async (request: any, reply: any) => {
         }
       }
     }
-  } catch (err) {
+  } catch {
     // allow through on errors in limiter
   }
 };

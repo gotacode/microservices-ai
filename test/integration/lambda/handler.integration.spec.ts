@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { handler } from '../src/handlers/lambda';
+import { handler } from '../../../src/handlers/lambda';
 
 describe('lambda handler', () => {
   it('returns health for /health path', async () => {

@@ -13,15 +13,26 @@ export const storeRefreshToken = async (token: string, username?: string) => {
 };
 
 export const validateRefreshToken = async (token: string) => {
-  if (!token) return null;
+  if (!token) {
+    return null;
+  }
   const redis = (redisClient as any).__getRedisClient ? (redisClient as any).__getRedisClient() : (redisClient as any).default;
   if (redis) {
     const v = await redis.get(`refresh:${token}`);
-    if (!v) return null;
-    return JSON.parse(v);
+    if (!v) {
+      return null;
+    }
+    try {
+      return JSON.parse(v);
+    } catch {
+      // malformed payload stored in redis; treat as missing token
+      return null;
+    }
   }
   const entry = refreshMap.get(token);
-  if (!entry) return null;
+  if (!entry) {
+    return null;
+  }
   if (entry.expiresAt <= Date.now()) {
     refreshMap.delete(token);
     return null;

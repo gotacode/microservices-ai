@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { storeRefreshToken, validateRefreshToken } from '../src/stores/refresh';
+import { storeRefreshToken, validateRefreshToken } from '../../../src/stores/refresh';
 
 describe('refresh store (in-memory)', () => {
   beforeEach(() => {

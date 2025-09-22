@@ -6,10 +6,12 @@ describe('plugins/redisClient ioredis branch', () => {
     delete process.env.REDIS_URL;
     delete process.env.__TEST_IOREDIS;
     // dynamic import after env change
-    const mod = await import('../src/plugins/redisClient');
+    const mod = await import('../../../src/plugins/redisClient');
     // call init helper if present
-  if (mod.__initRedisClient) mod.__initRedisClient();
-  const client = mod.__getRedisClient ? mod.__getRedisClient() : mod.default;
+    if (mod.__initRedisClient) {
+      mod.__initRedisClient();
+    }
+    const client = mod.__getRedisClient ? mod.__getRedisClient() : mod.default;
     expect(client).toBeNull();
     process.env.REDIS_URL = orig;
   });
@@ -18,9 +20,11 @@ describe('plugins/redisClient ioredis branch', () => {
     const orig = process.env.REDIS_URL;
     process.env.REDIS_URL = 'redis://localhost:6379';
     process.env.__TEST_IOREDIS = '1';
-    const mod = await import('../src/plugins/redisClient');
-  if (mod.__initRedisClient) mod.__initRedisClient();
-  const client = mod.__getRedisClient ? mod.__getRedisClient() : mod.default;
+    const mod = await import('../../../src/plugins/redisClient');
+    if (mod.__initRedisClient) {
+      mod.__initRedisClient();
+    }
+    const client = mod.__getRedisClient ? mod.__getRedisClient() : mod.default;
     expect(client).toBeTruthy();
     expect(client.url).toBe('redis://localhost:6379');
     process.env.REDIS_URL = orig;
