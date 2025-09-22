@@ -31,6 +31,7 @@ initClient();
 
 // test helper to reinitialize based on current env
 export const __initRedisClient = () => initClient();
+export const getRedisClient = () => client;
 export const __getRedisClient = () => client;
 
 // test helper to set a fake client directly

@@ -1,28 +1,29 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import * as redisClient from '../../../src/plugins/redisClient';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { __setRedisClient } from '../../../src/plugins/redisClient';
 import { rateLimiterHook } from '../../../src/middleware/rateLimiter';
 
-// Simulate redis-backed limiter by stubbing the redis client methods
 describe('rate limiter redis path', () => {
   beforeEach(() => {
-    // @ts-ignore
-    redisClient.default = {
-      store: new Map<string, number>(),
+    const store = new Map<string, number>();
+    __setRedisClient({
+      store,
       incr: async (key: string) => {
-        const s: any = redisClient.default.store;
-        const v = (s.get(key) || 0) + 1;
-        s.set(key, v);
-        return v;
+        const value = (store.get(key) || 0) + 1;
+        store.set(key, value);
+        return value;
       },
-      expire: async (_k: string, _s: number) => {},
-    };
+      expire: async () => {},
+    } as any);
+  });
+
+  afterEach(() => {
+    __setRedisClient(null);
   });
 
   it('calls redis path and allows initial requests', async () => {
     const req: any = { ip: '1.2.3.4' };
     const reply: any = { code: (_: number) => ({ send: (_: any) => {} }) };
     await rateLimiterHook(req, reply);
-    // no exception
     expect(true).toBe(true);
   });
 });
