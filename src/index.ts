@@ -3,6 +3,7 @@ import jwt from '@fastify/jwt';
 
 import config from './config';
 import logger from './logger';
+import runtime, { shouldAutoStartServer } from './runtime';
 import { rateLimiterHook } from './middleware/rateLimiter';
 import registerHealth from './routes/health';
 import registerReady from './routes/ready';
@@ -57,7 +58,8 @@ const start = async () => {
   }
 };
 
-if (process.env.NODE_ENV !== 'test') {
+if (shouldAutoStartServer()) {
+  logger.debug({ runtime: runtime.target }, 'Auto starting HTTP server');
   start();
 }
 
