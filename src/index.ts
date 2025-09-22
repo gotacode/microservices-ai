@@ -1,4 +1,11 @@
 import Fastify from 'fastify';
+import dotenv from 'dotenv';
+import jwt from '@fastify/jwt';
+
+// Load .env in dev
+if (process.env.NODE_ENV !== 'production') {
+  dotenv.config();
+}
 
 const server = Fastify({
   logger: true,
@@ -6,9 +13,24 @@ const server = Fastify({
   ...( { routerOptions: { ignoreTrailingSlash: true } } as any),
 });
 
-server.get('/health', async () => ({ status: 'ok' }));
+// register jwt
+const jwtSecret = process.env.JWT_SECRET || 'changeme';
+server.register(jwt, { secret: jwtSecret });
 
-server.get('/', async () => ({ message: 'Hello from microservices-ai boilerplate' }));
+// register middleware and routes
+import { rateLimiterHook } from './middleware/rateLimiter';
+import registerHealth from './routes/health';
+import registerMetrics from './routes/metrics';
+import registerOpenAPI from './routes/openapi';
+import registerLogin from './routes/login';
+import registerAuth from './routes/auth';
+
+server.addHook('preHandler', rateLimiterHook as any);
+registerHealth(server);
+registerMetrics(server);
+registerOpenAPI(server);
+registerLogin(server);
+registerAuth(server);
 
 const start = async () => {
   try {
@@ -25,4 +47,4 @@ if (process.env.NODE_ENV !== 'test') {
   start();
 }
 
-export { server };
+export { server, start };
