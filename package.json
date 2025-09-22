@@ -32,7 +32,9 @@
     "node": ">=20"
   },
   "devDependencies": {
+    "@types/aws-lambda": "^8.10.152",
     "@types/node": "^20.19.17",
+    "@types/supertest": "^6.0.3",
     "@typescript-eslint/eslint-plugin": "^8.44.1",
     "@typescript-eslint/parser": "^8.44.1",
     "esbuild": "^0.25.10",
