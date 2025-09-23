@@ -54,12 +54,20 @@ const parsePayload = (event: APIGatewayProxyEvent) => {
     return undefined;
   }
 
-  if (event.isBase64Encoded) {
-    return Buffer.from(event.body, 'base64');
-  }
-
   const headers = mapHeaders(event.headers);
   const contentType = headers['content-type'];
+
+  if (event.isBase64Encoded) {
+    const buffer = Buffer.from(event.body, 'base64');
+    if (contentType && contentType.includes('application/json')) {
+      try {
+        return JSON.parse(buffer.toString('utf-8'));
+      } catch (error) {
+        logger.warn({ err: error }, 'failed to parse base64 JSON payload, returning raw buffer');
+      }
+    }
+    return buffer;
+  }
 
   if (contentType && contentType.includes('application/json')) {
     try {
