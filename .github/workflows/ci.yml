@@ -19,7 +19,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 2. Configurar pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v2
         with:
           version: 8
 
