@@ -1,5 +1,5 @@
 import { FastifyInstance } from 'fastify';
-import config from './config';
+
 
 export const registerErrorHandlers = (app: FastifyInstance) => {
   app.setErrorHandler((error, request, reply) => {

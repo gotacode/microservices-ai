@@ -9,7 +9,7 @@ import { registerHooks } from './hooks';
 import { registerErrorHandlers } from './errorHandlers';
 import { registerAllRoutes } from './routes';
 
-const { http: httpConfig } = config;
+
 
 export const configureServer = (app: FastifyInstance) => {
   registerPlugins(app);
@@ -24,8 +24,7 @@ export const buildServer = () => {
     logger: {
       level: config.logging.level,
     },
-    requestIdHeader: httpConfig.requestIdHeader,
-    ...( { routerOptions: { ignoreTrailingSlash: true } } as any),
+    router: { ignoreTrailingSlash: true },
   });
 
   return configureServer(app);
