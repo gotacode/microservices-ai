@@ -5,6 +5,15 @@ type TestServer = FastifyInstance;
 
 export const createTestServer = async (): Promise<TestServer> => {
   const app = buildServer();
+
+  // Add test-only routes
+  app.get('/test-query', async (request, reply) => {
+    reply.send(request.query);
+  });
+  app.post('/test-echo', async (request, reply) => {
+    reply.send(request.body);
+  });
+
   await app.ready();
   return app;
 };

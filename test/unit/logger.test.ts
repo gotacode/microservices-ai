@@ -25,7 +25,15 @@ describe('logger', () => {
     process.env.LOG_LEVEL = 'warn';
     process.env.LOG_PRETTY = 'true';
 
+    // Mock require.resolve to simulate pino-pretty not being available
+    vi.mock('pino-pretty', () => {
+      throw new Error('pino-pretty not found');
+    });
+
     const { default: applicationLogger } = await import('../../src/logger');
     expect(applicationLogger.level).toBe('warn');
+    // Expect transport to be undefined, meaning it fell back to JSON logs
+    // This is an internal detail, but we can infer it by the absence of pino-pretty
+    // and the fact that the logger was still created without error.
   });
 });

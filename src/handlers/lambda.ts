@@ -1,105 +1,31 @@
-import { server } from '../index';
-import {
-  APIGatewayProxyEvent,
-  Context,
-  APIGatewayProxyResult,
-  APIGatewayProxyEventHeaders,
-  APIGatewayProxyEventMultiValueQueryStringParameters,
-} from 'aws-lambda';
+import { server as prodServer } from '../index';
+import type { FastifyInstance } from 'fastify';
+import type { APIGatewayProxyEvent, Context, APIGatewayProxyResult } from 'aws-lambda';
 import logger from '../logger';
+import { mapHeaders, mapQueryString, parsePayload } from './lambda.mapper';
 
-// Adapt AWS API Gateway event to Fastify using server.inject
-type ProxyResponse = APIGatewayProxyResult;
+export const createHandler = (server: FastifyInstance) => {
+  const ready = server.ready();
 
-const mapHeaders = (headers?: APIGatewayProxyEventHeaders) => {
-  if (!headers) {
-    return {};
-  }
-  const mapped: Record<string, string> = {};
-  for (const [key, value] of Object.entries(headers)) {
-    if (value !== undefined) {
-      mapped[key.toLowerCase()] = value;
-    }
-  }
-  return mapped;
-};
+  return async (event: APIGatewayProxyEvent, _context: Context): Promise<APIGatewayProxyResult> => {
+    await ready;
 
-const mapQueryString = (
-  single?: Record<string, string | undefined>,
-  multi?: APIGatewayProxyEventMultiValueQueryStringParameters,
-) => {
-  if (!single && !multi) {
-    return undefined;
-  }
-  const query: Record<string, string | string[]> = {};
-  if (multi) {
-    for (const [key, values] of Object.entries(multi)) {
-      if (values !== undefined) {
-        query[key] = values;
-      }
-    }
-  }
-  if (single) {
-    for (const [key, value] of Object.entries(single)) {
-      if (value !== undefined) {
-        query[key] = value;
-      }
-    }
-  }
-  return Object.keys(query).length > 0 ? query : undefined;
-};
+    logger.debug({ path: event.path, method: event.httpMethod }, 'lambda handler invoked');
 
-const parsePayload = (event: APIGatewayProxyEvent) => {
-  if (!event.body) {
-    return undefined;
-  }
+    const response = await server.inject({
+      method: event.httpMethod,
+      url: event.path ?? '/',
+      query: mapQueryString(event.queryStringParameters ?? undefined, event.multiValueQueryStringParameters ?? undefined),
+      payload: parsePayload(event),
+      headers: mapHeaders(event.headers),
+    });
 
-  const headers = mapHeaders(event.headers);
-  const contentType = headers['content-type'];
-
-  if (event.isBase64Encoded) {
-    const buffer = Buffer.from(event.body, 'base64');
-    if (contentType && contentType.includes('application/json')) {
-      try {
-        return JSON.parse(buffer.toString('utf-8'));
-      } catch (error) {
-        logger.warn({ err: error }, 'failed to parse base64 JSON payload, returning raw buffer');
-      }
-    }
-    return buffer;
-  }
-
-  if (contentType && contentType.includes('application/json')) {
-    try {
-      return JSON.parse(event.body);
-    } catch (error) {
-      logger.warn({ err: error }, 'failed to parse JSON payload, falling back to raw body');
-    }
-  }
-
-  try {
-    return JSON.parse(event.body);
-  } catch {
-    return event.body;
-  }
-};
-
-export const handler = async (event: APIGatewayProxyEvent, _context: Context): Promise<ProxyResponse> => {
-  await server.ready();
-
-  logger.debug({ path: event.path, method: event.httpMethod }, 'lambda handler invoked');
-
-  const response = await server.inject({
-    method: event.httpMethod,
-    url: event.path ?? '/',
-    query: mapQueryString(event.queryStringParameters ?? undefined, event.multiValueQueryStringParameters ?? undefined),
-    payload: parsePayload(event),
-    headers: mapHeaders(event.headers),
-  });
-
-  return {
-    statusCode: response.statusCode,
-    body: response.body,
-    headers: response.headers as Record<string, string>,
+    return {
+      statusCode: response.statusCode,
+      body: response.body,
+      headers: response.headers as Record<string, string>,
+    };
   };
 };
+
+export const handler = createHandler(prodServer);

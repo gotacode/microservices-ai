@@ -16,5 +16,12 @@ describe('basic server', () => {
     const res = await app.inject({ method: 'GET', url: '/health' });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({ status: 'ok' });
+    expect(res.headers['x-request-id']).toBeTruthy();
+  });
+
+  it('GET / returns a welcome message', async () => {
+    const res = await app.inject({ method: 'GET', url: '/' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ message: 'Hello from microservices-ai boilerplate' });
   });
 });
