@@ -47,9 +47,9 @@ describe('config loader', () => {
   it('handles invalid boolean environment variables gracefully', async () => {
     process.env.LOG_PRETTY = 'invalid';
     process.env.HTTP_CORS_ENABLED = 'no';
-    process.env.HTTP_CORS_ALLOW_CREDENTIALS = 'falsey';
+    process.env.HTTP_CORS_ALLOW_CREDENTIALS = '0'; // Explicitly test '0'
     process.env.HTTP_COMPRESSION_ENABLED = 'off';
-    process.env.HTTP_SECURITY_HEADERS_ENABLED = '0';
+    process.env.HTTP_SECURITY_HEADERS_ENABLED = 'falsey'; // Changed to falsey to avoid redundancy with '0'
 
     const { loadConfig } = await import('../../src/config');
     const cfg = loadConfig();
@@ -92,6 +92,15 @@ describe('config loader', () => {
     // Expect it to fall back to the default values for origin and methods
     expect(cfg.http.cors.origin).toEqual(['*']);
     expect(cfg.http.cors.methods).toEqual(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
+  });
+
+  it(`respects boolean environment variables with '1' as true`, async () => {
+    process.env.HTTP_CORS_ALLOW_CREDENTIALS = '1';
+
+    const { loadConfig } = await import('../../src/config');
+    const cfg = loadConfig();
+
+    expect(cfg.http.cors.allowCredentials).toBe(true);
   });
 
   it('respects overrides from environment variables', async () => {

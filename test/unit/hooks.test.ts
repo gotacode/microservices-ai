@@ -59,4 +59,32 @@ describe('Hooks', () => {
     expect(mockReply.header).toHaveBeenCalledWith(mockConfig.http.requestIdHeader, 'another-request-id');
     expect(mockDone).toHaveBeenCalledWith(null, mockPayload);
   });
+
+  it('should handle undefined request.id in onError hook', () => {
+    registerHooks(app);
+
+    const onErrorHook = app.addHook.mock.calls[0][1];
+    const mockRequest = { log: mockLogger, id: undefined } as any;
+    const mockReply = { header: vi.fn() } as any;
+    const mockError = new Error('Test Error');
+    const mockDone = vi.fn();
+
+    onErrorHook(mockRequest, mockReply, mockError, mockDone);
+
+    expect(mockReply.header).toHaveBeenCalledWith(mockConfig.http.requestIdHeader, '');
+  });
+
+  it('should handle undefined request.id in onSend hook', () => {
+    registerHooks(app);
+
+    const onSendHook = app.addHook.mock.calls[1][1];
+    const mockRequest = { log: mockLogger, id: undefined } as any;
+    const mockReply = { header: vi.fn() } as any;
+    const mockPayload = { data: 'test' };
+    const mockDone = vi.fn();
+
+    onSendHook(mockRequest, mockReply, mockPayload, mockDone);
+
+    expect(mockReply.header).toHaveBeenCalledWith(mockConfig.http.requestIdHeader, '');
+  });
 });
