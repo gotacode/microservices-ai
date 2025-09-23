@@ -5,7 +5,7 @@ let client: any = null;
 
 const log = logger.child({ module: 'redisClient' });
 
-const initClient = () => {
+export const initClient = () => {
   client = null;
   const cfg = loadConfig();
   const redisUrl = cfg.redis.url;
@@ -24,6 +24,10 @@ const initClient = () => {
       if (redisUrl) {
         log.info({ url: redisUrl }, 'Initialising Redis client');
         client = new Redis(redisUrl);
+        // Add an error handler to prevent unhandled error events
+        client.on('error', (err: Error) => {
+          log.error({ err }, 'Redis client error');
+        });
       } else {
         log.debug('No Redis URL provided; Redis client disabled');
       }
@@ -33,9 +37,6 @@ const initClient = () => {
     client = null;
   }
 };
-
-// initialize on module load
-initClient();
 
 // test helper to reinitialize based on current env
 export const __initRedisClient = () => initClient();
@@ -48,3 +49,4 @@ export const __setRedisClient = (c: any) => {
 };
 
 export default client;
+

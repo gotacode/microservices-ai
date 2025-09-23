@@ -3,10 +3,19 @@ import config from '../config';
 import { storeRefreshToken } from '../stores/refresh';
 
 export default function registerLogin(server: FastifyInstance) {
-  server.post('/login', async (request: any, reply: any) => {
-    const body = (request.body as any) || {};
-    const username = body.username;
-    const password = body.password;
+  const schema = {
+    body: {
+      type: 'object',
+      required: ['username', 'password'],
+      properties: {
+        username: { type: 'string' },
+        password: { type: 'string' },
+      },
+    },
+  };
+
+  server.post('/login', { schema }, async (request: any, reply: any) => {
+    const { username, password } = request.body;
     const { user: authUser, pass: authPass } = config.auth;
 
     request.log.debug({ username }, 'processing login request');

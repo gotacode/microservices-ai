@@ -8,6 +8,10 @@ export default defineConfig({
       reporter: ['text', 'lcov', 'json', 'text-summary'],
       all: true,
       include: ['src/**/*.ts'],
+      lines: 90,
+      functions: 90,
+      branches: 90,
+      statements: 90,
     },
   },
 });

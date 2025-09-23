@@ -2,27 +2,46 @@ name: CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
-  build-and-test:
+  validate:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Executa os testes nas versões LTS atuais e futuras do Node.js
+        node-version: [ '20.x', '22.x' ] 
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 'lts/*'
-      - uses: pnpm/action-setup@v2
+      - name: 1. Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: 2. Configurar pnpm
+        uses: pnpm/action-setup@v3
         with:
           version: 8
-      - name: Install dependencies
-        run: |
-          pnpm install
-      - name: Build
-        run: |
-          pnpm build
-      - name: Test
-        run: |
-          pnpm test
+
+      - name: 3. Configurar Node.js e Cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          # Habilita o cache de dependências do pnpm, tornando o CI muito mais rápido
+          cache: 'pnpm'
+
+      - name: 4. Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: 5. Auditoria de segurança
+        run: pnpm audit
+
+      - name: 6. Linter
+        run: pnpm lint
+
+      - name: 7. Teste e Cobertura
+        # O --coverage já valida a cobertura com base no vitest.config.ts
+        run: pnpm exec vitest run --coverage
+
+      - name: 8. Build do projeto
+        run: pnpm build
