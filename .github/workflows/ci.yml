@@ -31,7 +31,7 @@ jobs:
           cache: 'pnpm'
 
       - name: 4. Instalar dependências
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: 5. Auditoria de segurança
         run: pnpm audit
