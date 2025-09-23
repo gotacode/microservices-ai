@@ -20,6 +20,8 @@ type AppConfig = {
     user: string;
     pass: string;
     jwtSecret: string;
+    jwtAudience: string;
+    jwtIssuer: string;
   };
   rateLimit: {
     max: number;
@@ -102,6 +104,8 @@ export const loadConfig = (): AppConfig => {
       user: process.env.AUTH_USER ?? 'admin',
       pass: process.env.AUTH_PASS ?? 'password',
       jwtSecret: process.env.JWT_SECRET ?? 'changeme',
+      jwtAudience: process.env.JWT_AUDIENCE ?? 'urn:microservices-ai:api',
+      jwtIssuer: process.env.JWT_ISSUER ?? 'urn:microservices-ai:auth',
     },
     rateLimit: {
       max: toNumber(process.env.RATE_LIMIT_MAX, 100),

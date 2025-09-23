@@ -1,14 +1,14 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import jwt from '@fastify/jwt';
-import requestId from '@fastify/request-id';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import compress from '@fastify/compress';
+import rateLimit from '@fastify/rate-limit';
 
 import config from './config';
 import logger from './logger';
 import runtime, { shouldAutoStartServer } from './runtime';
-import { rateLimiterHook } from './middleware/rateLimiter';
+import { getRedisClient } from './plugins/redisClient';
 import registerHealth from './routes/health';
 import registerReady from './routes/ready';
 import registerMetrics from './routes/metrics';
@@ -19,10 +19,6 @@ import registerAuth from './routes/auth';
 const { http: httpConfig } = config;
 
 const configureServer = (app: FastifyInstance) => {
-  app.register(requestId, {
-    headerName: httpConfig.requestIdHeader,
-  });
-
   if (httpConfig.cors.enabled) {
     app.register(cors, {
       origin: httpConfig.cors.origin,
@@ -38,14 +34,18 @@ const configureServer = (app: FastifyInstance) => {
   if (httpConfig.compression.enabled) {
     app.register(compress, {
       global: true,
-      encodings: ['gzip'],
+      encodings: ['br', 'gzip'],
       threshold: httpConfig.compression.minLength,
     });
   }
 
-  app.addHook('onRequest', (request, _reply, done) => {
-    request.log.debug({ method: request.method, url: request.url }, 'incoming request');
-    done();
+  // Register rate-limit plugin
+  const redis = getRedisClient();
+  app.register(rateLimit, {
+    max: config.rateLimit.max,
+    timeWindow: config.rateLimit.windowSeconds * 1000, // plugin expects milliseconds
+    redis: redis,
+    keyGenerator: (request: any) => (request.ip || request.socket?.remoteAddress || 'anonymous') as string,
   });
 
   app.addHook('onError', (request, reply, error, done) => {
@@ -53,8 +53,6 @@ const configureServer = (app: FastifyInstance) => {
     reply.header(httpConfig.requestIdHeader, request.id ?? '');
     done();
   });
-
-  app.addHook('preHandler', rateLimiterHook as any);
 
   app.addHook('onSend', (request, reply, payload, done) => {
     reply.header(httpConfig.requestIdHeader, request.id ?? '');
@@ -83,10 +81,17 @@ const buildServer = () => {
     logger: {
       level: config.logging.level,
     },
+    requestIdHeader: httpConfig.requestIdHeader,
     ...( { routerOptions: { ignoreTrailingSlash: true } } as any),
   });
 
-  app.register(jwt, { secret: config.auth.jwtSecret });
+  app.register(jwt, {
+    secret: config.auth.jwtSecret,
+    verify: {
+      audience: config.auth.jwtAudience,
+      issuer: config.auth.jwtIssuer,
+    },
+  });
 
   return configureServer(app);
 };
