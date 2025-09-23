@@ -1,6 +1,9 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import jwt from '@fastify/jwt';
-import { randomUUID } from 'node:crypto';
+import requestId from '@fastify/request-id';
+import cors from '@fastify/cors';
+import helmet from '@fastify/helmet';
+import compress from '@fastify/compress';
 
 import config from './config';
 import logger from './logger';
@@ -15,46 +18,25 @@ import registerAuth from './routes/auth';
 
 const { http: httpConfig } = config;
 
-const optionalPlugin = (name: string) => {
-  try {
-    /* istanbul ignore next */
-    return require(name);
-  } catch (error) {
-    /* istanbul ignore next */
-    logger.debug({ plugin: name, err: error }, 'optional fastify plugin not available, skipping');
-    return null;
-  }
-};
-
 const configureServer = (app: FastifyInstance) => {
-  const requestIdPlugin = optionalPlugin('@fastify/request-id');
-  /* istanbul ignore if */
-  if (requestIdPlugin) {
-    app.register(requestIdPlugin, {
-      headerName: httpConfig.requestIdHeader,
-    });
-  }
+  app.register(requestId, {
+    headerName: httpConfig.requestIdHeader,
+  });
 
-  const corsPlugin = optionalPlugin('@fastify/cors');
-  /* istanbul ignore next */
-  if (corsPlugin && httpConfig.cors.enabled) {
-    app.register(corsPlugin, {
+  if (httpConfig.cors.enabled) {
+    app.register(cors, {
       origin: httpConfig.cors.origin,
       methods: httpConfig.cors.methods,
       credentials: httpConfig.cors.allowCredentials,
     });
   }
 
-  const helmetPlugin = optionalPlugin('@fastify/helmet');
-  /* istanbul ignore next */
-  if (helmetPlugin && httpConfig.security.enabled) {
-    app.register(helmetPlugin, { global: true });
+  if (httpConfig.security.enabled) {
+    app.register(helmet, { global: true });
   }
 
-  const compressPlugin = optionalPlugin('@fastify/compress');
-  /* istanbul ignore next */
-  if (compressPlugin && httpConfig.compression.enabled) {
-    app.register(compressPlugin, {
+  if (httpConfig.compression.enabled) {
+    app.register(compress, {
       global: true,
       encodings: ['gzip'],
       threshold: httpConfig.compression.minLength,
@@ -100,10 +82,6 @@ const buildServer = () => {
   const app = Fastify({
     logger: {
       level: config.logging.level,
-    },
-    genReqId: (req) => {
-      const headerValue = req.headers[httpConfig.requestIdHeader] as string | undefined;
-      return headerValue ?? randomUUID();
     },
     ...( { routerOptions: { ignoreTrailingSlash: true } } as any),
   });

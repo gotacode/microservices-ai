@@ -39,15 +39,13 @@ docker run -p 3000:3000 --env-file .env microservices-ai
 
 ## Middleware & Observability
 
-The service wires optional Fastify plugins when available:
+The service wires first-class Fastify plugins:
 
-- `@fastify/request-id` – propagates request IDs (falls back to UUIDs if missing).
-- `@fastify/cors` – configurable CORS with allowlist.
+- `@fastify/request-id` – propagates request IDs end-to-end.
+- `@fastify/cors` – configurable CORS with allowlist/credentials support.
 - `@fastify/helmet` – security headers.
-- `@fastify/compress` – gzip compression when beneficial.
+- `@fastify/compress` – gzip compression when payloads exceed the configured threshold.
 - Built-in logging (Pino), metrics, health/ready routes, and rate limiting.
-
-If any middleware is not installed in your environment the server logs a debug message and continues gracefully.
 
 ### Environment variables
 
