@@ -15,7 +15,7 @@ const envSchema = z.object({
   ),
   LOG_PRETTY: z.preprocess(
     (val) => {
-      if (val === undefined || val === '') return undefined;
+      if (val === undefined || val === '') {return undefined;}
       return String(val).toLowerCase() === 'true' || String(val) === '1';
     },
     z.boolean().optional(),
@@ -59,7 +59,7 @@ const envSchema = z.object({
   HTTP_REQUEST_ID_HEADER: z.string().default('x-request-id'),
   HTTP_CORS_ENABLED: z.preprocess(
     (val) => {
-      if (val === undefined || val === '') return undefined;
+      if (val === undefined || val === '') {return undefined;}
       return String(val).toLowerCase() === 'true' || String(val) === '1';
     },
     z.boolean().optional(),
@@ -80,7 +80,7 @@ const envSchema = z.object({
   ),
   HTTP_CORS_ALLOW_CREDENTIALS: z.preprocess(
     (val) => {
-      if (val === undefined || val === '') return undefined;
+      if (val === undefined || val === '') {return undefined;}
       return String(val).toLowerCase() === 'true' || String(val) === '1';
     },
     z.boolean().optional(),
@@ -88,7 +88,7 @@ const envSchema = z.object({
 
   HTTP_COMPRESSION_ENABLED: z.preprocess(
     (val) => {
-      if (val === undefined || val === '') return undefined;
+      if (val === undefined || val === '') {return undefined;}
       return String(val).toLowerCase() === 'true' || String(val) === '1';
     },
     z.boolean().optional(),
@@ -103,7 +103,7 @@ const envSchema = z.object({
 
   HTTP_SECURITY_HEADERS_ENABLED: z.preprocess(
     (val) => {
-      if (val === undefined || val === '') return undefined;
+      if (val === undefined || val === '') {return undefined;}
       return String(val).toLowerCase() === 'true' || String(val) === '1';
     },
     z.boolean().optional(),
