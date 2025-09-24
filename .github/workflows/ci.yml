@@ -41,7 +41,7 @@ jobs:
 
       - name: 7. Teste e Cobertura
         # O --coverage já valida a cobertura com base no vitest.config.ts
-        run: pnpm exec vitest run --coverage
+        run: pnpm cov
 
       - name: 8. Build do projeto
         run: pnpm build

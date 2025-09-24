@@ -8,6 +8,7 @@ import { registerPlugins } from './plugins';
 import { registerHooks } from './hooks';
 import { registerErrorHandlers } from './errorHandlers';
 import { registerAllRoutes } from './routes';
+import { getRedisClient } from './plugins/redisClient';
 
 
 
@@ -23,6 +24,16 @@ export const buildServer = () => {
   const app = Fastify({
     logger: {
       level: config.logging.level,
+      transport: config.logging.pretty
+        ? {
+            target: 'pino-pretty',
+            options: {
+              colorize: true,
+              translateTime: 'HH:MM:ss Z',
+              ignore: 'pid,hostname',
+            },
+          }
+        : undefined,
     },
     router: { ignoreTrailingSlash: true },
   });
@@ -31,6 +42,33 @@ export const buildServer = () => {
 };
 
 const server = buildServer();
+
+// Graceful shutdown logic
+const gracefulShutdown = async (signal: string) => {
+  logger.info(`Received ${signal}. Shutting down gracefully...`);
+  await server.close();
+  logger.debug('HTTP server closed.');
+
+  const redis = getRedisClient();
+  if (redis) {
+    await redis.quit();
+    logger.debug('Redis client disconnected.');
+  }
+
+  logger.info('Graceful shutdown complete.');
+  process.exit(0);
+};
+
+// Error handling for uncaught exceptions
+const handleError = (error: Error, signal: string) => {
+  logger.fatal({ err: error }, `Caught ${signal}, forcing shutdown.`);
+  process.exit(1);
+};
+
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('uncaughtException', (err) => handleError(err, 'uncaughtException'));
+process.on('unhandledRejection', (reason) => handleError(reason as Error, 'unhandledRejection'));
 
 const start = async () => {
   try {
