@@ -1,12 +1,23 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 describe('refresh store - redis error handling', () => {
-  it('handles redis initialization failures gracefully', async () => {
-    vi.resetModules();
-    const origUrl = process.env.REDIS_URL;
-    process.env.REDIS_URL = 'redis://localhost:6379';
-    process.env.__TEST_IOREDIS = '1';
+  let origRedisUrl: string | undefined;
+  let origTestIoredis: string | undefined;
 
+  beforeEach(() => {
+    origRedisUrl = process.env.REDIS_URL;
+    origTestIoredis = process.env.__TEST_IOREDIS;
+    process.env.REDIS_URL = 'redis://localhost:6379'; // Ensure a valid URL is set for config loading
+    process.env.__TEST_IOREDIS = '1'; // Ensure ioredis is mocked for these tests
+  });
+
+  afterEach(() => {
+    process.env.REDIS_URL = origRedisUrl;
+    process.env.__TEST_IOREDIS = origTestIoredis;
+    vi.resetModules(); // Reset modules to ensure fresh imports for each test
+  });
+
+  it('handles redis initialization failures gracefully', async () => {
     const { __setRedisClient } = await import('../../../src/plugins/redisClient');
     const fake = {
       setex: vi.fn().mockRejectedValue(new Error('Redis connection failed')),
@@ -24,13 +35,9 @@ describe('refresh store - redis error handling', () => {
       expect.any(Number),
       expect.stringContaining('alice'),
     );
-
-    process.env.REDIS_URL = origUrl;
-    delete process.env.__TEST_IOREDIS;
   });
 
   it('falls back to in-memory when redis get/set fails', async () => {
-    vi.resetModules();
     const { __setRedisClient } = await import('../../../src/plugins/redisClient');
     if (__setRedisClient) {
       __setRedisClient(null);
@@ -49,7 +56,6 @@ describe('refresh store - redis error handling', () => {
   });
 
   it('handles malformed data in redis gracefully', async () => {
-    vi.resetModules();
     const { __setRedisClient } = await import('../../../src/plugins/redisClient');
     const fake = {
       setex: vi.fn().mockResolvedValue('OK'),

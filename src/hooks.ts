@@ -1,4 +1,4 @@
-import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { type FastifyInstance } from 'fastify';
 import config from './config';
 
 export const registerHooks = (app: FastifyInstance) => {

@@ -1,133 +1,163 @@
 import dotenv from 'dotenv';
+import { z } from 'zod';
 
 dotenv.config();
 
-type LogLevel = 'fatal' | 'error' | 'warn' | 'info' | 'debug' | 'trace' | 'silent';
+const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const;
+type LogLevel = typeof LOG_LEVELS[number];
 
-type AppConfig = {
-  appName: string;
-  nodeEnv: string;
-  isProduction: boolean;
-  logging: {
-    level: LogLevel;
-    pretty: boolean;
-  };
-  server: {
-    port: number;
-    host: string;
-  };
-  auth: {
-    user: string;
-    pass: string;
-    jwtSecret: string;
-    jwtAudience: string;
-    jwtIssuer: string;
-  };
-  rateLimit: {
-    max: number;
-    windowSeconds: number;
-  };
-  redis: {
-    url?: string;
-  };
-  http: {
-    requestIdHeader: string;
-    cors: {
-      enabled: boolean;
-      origin: string[];
-      methods: string[];
-      allowCredentials: boolean;
-    };
-    compression: {
-      enabled: boolean;
-      minLength: number;
-    };
-    security: {
-      enabled: boolean;
-    };
-  };
-};
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  APP_NAME: z.string().default('microservices-ai'),
+  LOG_LEVEL: z.preprocess(
+    (val) => (LOG_LEVELS as readonly string[]).includes(String(val)) ? String(val) : undefined,
+    z.enum(LOG_LEVELS).optional(),
+  ),
+  LOG_PRETTY: z.preprocess(
+    (val) => {
+      if (val === undefined || val === '') {return undefined;}
+      return String(val).toLowerCase() === 'true' || String(val) === '1';
+    },
+    z.boolean().optional(),
+  ),
 
-const LOG_LEVELS: LogLevel[] = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'];
+  PORT: z.preprocess(
+    (val) => {
+      const num = Number(val);
+      return (val === undefined || val === '' || isNaN(num)) ? undefined : num;
+    },
+    z.number().int().positive().optional(),
+  ),
+  HOST: z.string().default('0.0.0.0'),
 
-const toNumber = (value: string | undefined, fallback: number) => {
-  if (!value) {
-    return fallback;
-  }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-};
+  AUTH_USER: z.string().default('admin'),
+  AUTH_PASS: z.string().default('password'),
+  JWT_SECRET: z
+    .string()
+    .min(32, 'JWT_SECRET must be at least 32 characters long')
+    .refine((val) => val !== 'changeme', 'JWT_SECRET must be changed from default value'),
+  JWT_AUDIENCE: z.string().default('urn:microservices-ai:api'),
+  JWT_ISSUER: z.string().default('urn:microservices-ai:auth'),
 
-const toBoolean = (value: string | undefined, fallback: boolean) => {
-  if (value === undefined) {
-    return fallback;
-  }
-  return value === 'true' || value === '1';
-};
+  RATE_LIMIT_MAX: z.preprocess(
+    (val) => {
+      const num = Number(val);
+      return (val === undefined || val === '' || isNaN(num)) ? undefined : num;
+    },
+    z.number().int().positive().optional(),
+  ),
+  RATE_LIMIT_WINDOW_SEC: z.preprocess(
+    (val) => {
+      const num = Number(val);
+      return (val === undefined || val === '' || isNaN(num)) ? undefined : num;
+    },
+    z.number().int().positive().optional(),
+  ),
 
-const toLogLevel = (value: string | undefined, fallback: LogLevel): LogLevel => {
-  if (!value) {
-    return fallback;
-  }
-  return LOG_LEVELS.includes(value as LogLevel) ? (value as LogLevel) : fallback;
-};
+  REDIS_URL: z.string().url().optional(),
 
-const toStringArray = (value: string | undefined, fallback: string[]) => {
-  if (!value) {
-    return fallback;
-  }
-  const arr = value
-    .split(',')
-    .map((v) => v.trim())
-    .filter(Boolean);
-  return arr.length > 0 ? arr : fallback;
-};
+  HTTP_REQUEST_ID_HEADER: z.string().default('x-request-id'),
+  HTTP_CORS_ENABLED: z.preprocess(
+    (val) => {
+      if (val === undefined || val === '') {return undefined;}
+      return String(val).toLowerCase() === 'true' || String(val) === '1';
+    },
+    z.boolean().optional(),
+  ),
+  HTTP_CORS_ORIGIN: z.preprocess(
+    (val) => {
+      const arr = typeof val === 'string' ? val.split(',').map((v) => v.trim()).filter(Boolean) : [];
+      return arr.length > 0 ? arr : undefined;
+    },
+    z.array(z.string()).optional(),
+  ),
+  HTTP_CORS_METHODS: z.preprocess(
+    (val) => {
+      const arr = typeof val === 'string' ? val.split(',').map((v) => v.trim()).filter(Boolean) : [];
+      return arr.length > 0 ? arr : undefined;
+    },
+    z.array(z.string()).optional(),
+  ),
+  HTTP_CORS_ALLOW_CREDENTIALS: z.preprocess(
+    (val) => {
+      if (val === undefined || val === '') {return undefined;}
+      return String(val).toLowerCase() === 'true' || String(val) === '1';
+    },
+    z.boolean().optional(),
+  ),
+
+  HTTP_COMPRESSION_ENABLED: z.preprocess(
+    (val) => {
+      if (val === undefined || val === '') {return undefined;}
+      return String(val).toLowerCase() === 'true' || String(val) === '1';
+    },
+    z.boolean().optional(),
+  ),
+  HTTP_COMPRESSION_MIN_LENGTH: z.preprocess(
+    (val) => {
+      const num = Number(val);
+      return (val === undefined || val === '' || isNaN(num)) ? undefined : num;
+    },
+    z.number().int().nonnegative().optional(),
+  ),
+
+  HTTP_SECURITY_HEADERS_ENABLED: z.preprocess(
+    (val) => {
+      if (val === undefined || val === '') {return undefined;}
+      return String(val).toLowerCase() === 'true' || String(val) === '1';
+    },
+    z.boolean().optional(),
+  ),
+});
+
+export type AppConfig = z.infer<typeof envSchema>;
 
 export const loadConfig = (): AppConfig => {
-  const nodeEnv = process.env.NODE_ENV ?? 'development';
-  const isProduction = nodeEnv === 'production';
+  const parsedEnv = envSchema.parse(process.env);
+
+  const isProduction = parsedEnv.NODE_ENV === 'production';
   const defaultLogLevel: LogLevel = isProduction ? 'info' : 'debug';
 
   return {
-    appName: process.env.APP_NAME ?? 'microservices-ai',
-    nodeEnv,
+    appName: parsedEnv.APP_NAME,
+    nodeEnv: parsedEnv.NODE_ENV,
     isProduction,
     logging: {
-      level: toLogLevel(process.env.LOG_LEVEL, defaultLogLevel),
-      pretty: toBoolean(process.env.LOG_PRETTY, !isProduction),
+      level: parsedEnv.LOG_LEVEL ?? defaultLogLevel,
+      pretty: parsedEnv.LOG_PRETTY ?? !isProduction,
     },
     server: {
-      port: toNumber(process.env.PORT, 3000),
-      host: process.env.HOST ?? '0.0.0.0',
+      port: parsedEnv.PORT ?? 3000,
+      host: parsedEnv.HOST,
     },
     auth: {
-      user: process.env.AUTH_USER ?? 'admin',
-      pass: process.env.AUTH_PASS ?? 'password',
-      jwtSecret: process.env.JWT_SECRET ?? 'changeme',
-      jwtAudience: process.env.JWT_AUDIENCE ?? 'urn:microservices-ai:api',
-      jwtIssuer: process.env.JWT_ISSUER ?? 'urn:microservices-ai:auth',
+      user: parsedEnv.AUTH_USER,
+      pass: parsedEnv.AUTH_PASS,
+      jwtSecret: parsedEnv.JWT_SECRET,
+      jwtAudience: parsedEnv.JWT_AUDIENCE,
+      jwtIssuer: parsedEnv.JWT_ISSUER,
     },
     rateLimit: {
-      max: toNumber(process.env.RATE_LIMIT_MAX, 100),
-      windowSeconds: toNumber(process.env.RATE_LIMIT_WINDOW_SEC, 60),
+      max: parsedEnv.RATE_LIMIT_MAX ?? 100,
+      windowSeconds: parsedEnv.RATE_LIMIT_WINDOW_SEC ?? 60,
     },
     redis: {
-      url: process.env.REDIS_URL,
+      url: parsedEnv.REDIS_URL,
     },
     http: {
-      requestIdHeader: process.env.HTTP_REQUEST_ID_HEADER ?? 'x-request-id',
+      requestIdHeader: parsedEnv.HTTP_REQUEST_ID_HEADER,
       cors: {
-        enabled: toBoolean(process.env.HTTP_CORS_ENABLED, true),
-        origin: toStringArray(process.env.HTTP_CORS_ORIGIN, ['*']),
-        methods: toStringArray(process.env.HTTP_CORS_METHODS, ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']),
-        allowCredentials: toBoolean(process.env.HTTP_CORS_ALLOW_CREDENTIALS, false),
+        enabled: parsedEnv.HTTP_CORS_ENABLED ?? true,
+        origin: parsedEnv.HTTP_CORS_ORIGIN ?? ['*'],
+        methods: parsedEnv.HTTP_CORS_METHODS ?? ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowCredentials: parsedEnv.HTTP_CORS_ALLOW_CREDENTIALS ?? false,
       },
       compression: {
-        enabled: toBoolean(process.env.HTTP_COMPRESSION_ENABLED, true),
-        minLength: toNumber(process.env.HTTP_COMPRESSION_MIN_LENGTH, 1024),
+        enabled: parsedEnv.HTTP_COMPRESSION_ENABLED ?? true,
+        minLength: parsedEnv.HTTP_COMPRESSION_MIN_LENGTH ?? 1024,
       },
       security: {
-        enabled: toBoolean(process.env.HTTP_SECURITY_HEADERS_ENABLED, true),
+        enabled: parsedEnv.HTTP_SECURITY_HEADERS_ENABLED ?? true,
       },
     },
   };

@@ -1,32 +1,20 @@
-import pino, { type Logger } from 'pino';
+import pino from 'pino';
 import config from './config';
 
-let transport: pino.TransportSingleOptions | undefined;
-if (config.logging.pretty) {
-  try {
-    require.resolve('pino-pretty');
-    transport = {
-      target: 'pino-pretty',
-      options: {
-        colorize: true,
-        translateTime: 'SYS:standard',
-        ignore: 'pid,hostname',
-      },
-    };
-  } catch {
-    // pino-pretty not available; fall back to JSON logs
-    transport = undefined;
-  }
-}
-
-const logger: Logger = pino({
+const logger = pino({
   level: config.logging.level,
   name: config.appName,
-  transport,
+  // Conditionally add the transport for pretty printing
+  transport: config.logging.pretty
+    ? {
+        target: 'pino-pretty',
+        options: {
+          colorize: true,
+          translateTime: 'HH:MM:ss Z',
+          ignore: 'pid,hostname',
+        },
+      }
+    : undefined,
 });
-
-export const setLoggerLevel = (level: string) => {
-  logger.level = level;
-};
 
 export default logger;

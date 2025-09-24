@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import Fastify, { type FastifyInstance } from 'fastify';
+import { type FastifyInstance } from 'fastify';
 
 // Mock logger
 const mockLogger = {

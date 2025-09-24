@@ -14,9 +14,9 @@ describe('logger', () => {
   });
 
   it('creates logger with configured level and allows updating it', async () => {
-    const { default: applicationLogger, setLoggerLevel } = await import('../../src/logger');
+    const { default: applicationLogger } = await import('../../src/logger');
     expect(applicationLogger.level).toBe('info');
-    setLoggerLevel('debug');
+    applicationLogger.level = 'debug';
     expect(applicationLogger.level).toBe('debug');
   });
 
