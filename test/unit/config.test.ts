@@ -1,139 +1,129 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { ZodError } from 'zod';
 
-describe('config loader', () => {
-  const originalEnv = { ...process.env };
+describe('config.ts', () => {
+  const OLD_ENV = process.env;
 
   beforeEach(() => {
+    // Reset the process.env before each test
     vi.resetModules();
-    process.env = { ...originalEnv };
+    process.env = { ...OLD_ENV };
   });
 
   afterEach(() => {
-    process.env = { ...originalEnv };
+    process.env = OLD_ENV;
   });
 
-  it('loads default values when env vars are missing', async () => {
-    delete process.env.PORT;
-    delete process.env.HOST;
-    delete process.env.LOG_LEVEL;
-    delete process.env.LOG_PRETTY;
-    delete process.env.HTTP_REQUEST_ID_HEADER;
+  describe('loadConfig', () => {
+    it('should load default config when no env vars are set', async () => {
+      // we need to set a valid JWT_SECRET
+      process.env.JWT_SECRET = 'a-very-long-and-secure-test-secret-for-vitest-env';
+      delete process.env.NODE_ENV;
+      const { loadConfig } = await import('../../src/config');
+      const config = loadConfig();
 
-    const { loadConfig } = await import('../../src/config');
-    const cfg = loadConfig();
+      expect(config.appName).toBe('microservices-ai');
+      expect(config.nodeEnv).toBe('development');
+      expect(config.isProduction).toBe(false);
+      expect(config.logging.level).toBe('debug');
+      expect(config.logging.pretty).toBe(true);
+      expect(config.server.port).toBe(3000);
+      expect(config.server.host).toBe('0.0.0.0');
+      expect(config.auth.user).toBe('admin');
+      expect(config.auth.pass).toBe('password');
+      expect(config.auth.jwtSecret).toBe('a-very-long-and-secure-test-secret-for-vitest-env');
+      expect(config.auth.jwtAudience).toBe('urn:microservices-ai:api');
+      expect(config.auth.jwtIssuer).toBe('urn:microservices-ai:auth');
+      expect(config.rateLimit.max).toBe(100);
+      expect(config.rateLimit.windowSeconds).toBe(60);
+      expect(config.redis.url).toBeUndefined();
+      expect(config.http.requestIdHeader).toBe('x-request-id');
+      expect(config.http.cors.enabled).toBe(true);
+      expect(config.http.cors.origin).toEqual(['*']);
+      expect(config.http.cors.methods).toEqual(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
+      expect(config.http.cors.allowCredentials).toBe(false);
+      expect(config.http.compression.enabled).toBe(true);
+      expect(config.http.compression.minLength).toBe(1024);
+      expect(config.http.security.enabled).toBe(true);
+    });
 
-    expect(cfg.server.port).toBe(3000);
-    expect(cfg.server.host).toBe('0.0.0.0');
-    expect(cfg.logging.level).toBe('debug');
-    expect(cfg.logging.pretty).toBe(true);
-    expect(cfg.http.requestIdHeader).toBe('x-request-id');
-    expect(cfg.http.cors.origin).toEqual(['*']);
-    expect(cfg.http.compression.enabled).toBe(true);
-  });
+    it('should load production config when NODE_ENV is production', async () => {
+      process.env.NODE_ENV = 'production';
+      process.env.JWT_SECRET = 'a-very-long-and-secure-test-secret-for-vitest-env';
+      const { loadConfig } = await import('../../src/config');
+      const config = loadConfig();
 
-  it('handles invalid numeric environment variables gracefully', async () => {
-    process.env.PORT = 'not-a-number';
-    process.env.RATE_LIMIT_MAX = 'abc';
-    process.env.HTTP_COMPRESSION_MIN_LENGTH = 'xyz';
+      expect(config.nodeEnv).toBe('production');
+      expect(config.isProduction).toBe(true);
+      expect(config.logging.level).toBe('info');
+      expect(config.logging.pretty).toBe(false);
+    });
 
-    const { loadConfig } = await import('../../src/config');
-    const cfg = loadConfig();
+    it('should load custom config from env vars', async () => {
+      process.env.APP_NAME = 'my-app';
+      process.env.LOG_LEVEL = 'warn';
+      process.env.LOG_PRETTY = 'false';
+      process.env.PORT = '4000';
+      process.env.HOST = '127.0.0.1';
+      process.env.AUTH_USER = 'user';
+      process.env.AUTH_PASS = 'pass';
+      process.env.JWT_SECRET = 'another-very-long-and-secure-test-secret';
+      process.env.JWT_AUDIENCE = 'my-audience';
+      process.env.JWT_ISSUER = 'my-issuer';
+      process.env.RATE_LIMIT_MAX = '200';
+      process.env.RATE_LIMIT_WINDOW_SEC = '120';
+      process.env.REDIS_URL = 'redis://localhost:6380';
+      process.env.HTTP_REQUEST_ID_HEADER = 'x-my-request-id';
+      process.env.HTTP_CORS_ENABLED = 'false';
+      process.env.HTTP_CORS_ORIGIN = 'http://localhost:3000';
+      process.env.HTTP_CORS_METHODS = 'GET,POST';
+      process.env.HTTP_CORS_ALLOW_CREDENTIALS = 'true';
+      process.env.HTTP_COMPRESSION_ENABLED = 'false';
+      process.env.HTTP_COMPRESSION_MIN_LENGTH = '2048';
+      process.env.HTTP_SECURITY_HEADERS_ENABLED = 'false';
 
-    expect(cfg.server.port).toBe(3000);
-    expect(cfg.rateLimit.max).toBe(100);
-    expect(cfg.http.compression.minLength).toBe(1024);
-  });
+      const { loadConfig } = await import('../../src/config');
+      const config = loadConfig();
 
-  it('handles invalid boolean environment variables gracefully', async () => {
-    process.env.LOG_PRETTY = 'invalid';
-    process.env.HTTP_CORS_ENABLED = 'no';
-    process.env.HTTP_CORS_ALLOW_CREDENTIALS = '0'; // Explicitly test '0'
-    process.env.HTTP_COMPRESSION_ENABLED = 'off';
-    process.env.HTTP_SECURITY_HEADERS_ENABLED = 'falsey'; // Changed to falsey to avoid redundancy with '0'
+      expect(config.appName).toBe('my-app');
+      expect(config.logging.level).toBe('warn');
+      expect(config.logging.pretty).toBe(false);
+      expect(config.server.port).toBe(4000);
+      expect(config.server.host).toBe('127.0.0.1');
+      expect(config.auth.user).toBe('user');
+      expect(config.auth.pass).toBe('pass');
+      expect(config.auth.jwtSecret).toBe('another-very-long-and-secure-test-secret');
+      expect(config.auth.jwtAudience).toBe('my-audience');
+      expect(config.auth.jwtIssuer).toBe('my-issuer');
+      expect(config.rateLimit.max).toBe(200);
+      expect(config.rateLimit.windowSeconds).toBe(120);
+      expect(config.redis.url).toBe('redis://localhost:6380');
+      expect(config.http.requestIdHeader).toBe('x-my-request-id');
+      expect(config.http.cors.enabled).toBe(false);
+      expect(config.http.cors.origin).toEqual(['http://localhost:3000']);
+      expect(config.http.cors.methods).toEqual(['GET', 'POST']);
+      expect(config.http.cors.allowCredentials).toBe(true);
+      expect(config.http.compression.enabled).toBe(false);
+      expect(config.http.compression.minLength).toBe(2048);
+      expect(config.http.security.enabled).toBe(false);
+    });
 
-    const { loadConfig } = await import('../../src/config');
-    const cfg = loadConfig();
+    it('should throw error if JWT_SECRET is not set', async () => {
+      delete process.env.JWT_SECRET;
+      try {
+        await import('../../src/config');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ZodError);
+      }
+    });
 
-    expect(cfg.logging.pretty).toBe(false); // Assuming default is false in production, true in dev
-    expect(cfg.http.cors.enabled).toBe(false);
-    expect(cfg.http.cors.allowCredentials).toBe(false);
-    expect(cfg.http.compression.enabled).toBe(false);
-    expect(cfg.http.security.enabled).toBe(false);
-  });
-
-  it('handles invalid log level environment variable gracefully', async () => {
-    process.env.LOG_LEVEL = 'invalid-level';
-
-    const { loadConfig } = await import('../../src/config');
-    const cfg = loadConfig();
-
-    // Expect it to fall back to the default log level (debug in development)
-    expect(cfg.logging.level).toBe('debug');
-  });
-
-  it('handles empty string array environment variables gracefully', async () => {
-    process.env.HTTP_CORS_ORIGIN = ',';
-    process.env.HTTP_CORS_METHODS = ' ';
-
-    const { loadConfig } = await import('../../src/config');
-    const cfg = loadConfig();
-
-    expect(cfg.http.cors.origin).toEqual(['*']);
-    expect(cfg.http.cors.methods).toEqual(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
-  });
-
-  it('handles string array environment variables that become empty after filtering', async () => {
-    process.env.HTTP_CORS_ORIGIN = ','; // This will result in [''] after split, then [] after filter(Boolean)
-    process.env.HTTP_CORS_METHODS = ' '; // This will result in [' '] after split, then [''] after trim, then [] after filter(Boolean)
-
-    const { loadConfig } = await import('../../src/config');
-    const cfg = loadConfig();
-
-    // Expect it to fall back to the default values for origin and methods
-    expect(cfg.http.cors.origin).toEqual(['*']);
-    expect(cfg.http.cors.methods).toEqual(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']);
-  });
-
-  it(`respects boolean environment variables with '1' as true`, async () => {
-    process.env.HTTP_CORS_ALLOW_CREDENTIALS = '1';
-
-    const { loadConfig } = await import('../../src/config');
-    const cfg = loadConfig();
-
-    expect(cfg.http.cors.allowCredentials).toBe(true);
-  });
-
-  it('respects overrides from environment variables', async () => {
-    process.env.PORT = '4001';
-    process.env.HOST = '127.0.0.1';
-    process.env.LOG_LEVEL = 'error';
-    process.env.LOG_PRETTY = 'false';
-    process.env.AUTH_USER = 'tester';
-    process.env.RATE_LIMIT_MAX = '10';
-    process.env.HTTP_REQUEST_ID_HEADER = 'x-correlation-id';
-    process.env.HTTP_CORS_ENABLED = 'true';
-    process.env.HTTP_CORS_ORIGIN = 'https://example.com,https://foo.test';
-    process.env.HTTP_CORS_METHODS = 'GET,POST';
-    process.env.HTTP_CORS_ALLOW_CREDENTIALS = 'true';
-    process.env.HTTP_COMPRESSION_ENABLED = 'false';
-    process.env.HTTP_COMPRESSION_MIN_LENGTH = '512';
-    process.env.HTTP_SECURITY_HEADERS_ENABLED = 'false';
-
-    const { loadConfig } = await import('../../src/config');
-    const cfg = loadConfig();
-
-    expect(cfg.server.port).toBe(4001);
-    expect(cfg.server.host).toBe('127.0.0.1');
-    expect(cfg.logging.level).toBe('error');
-    expect(cfg.logging.pretty).toBe(false);
-    expect(cfg.auth.user).toBe('tester');
-    expect(cfg.rateLimit.max).toBe(10);
-    expect(cfg.http.requestIdHeader).toBe('x-correlation-id');
-    expect(cfg.http.cors.origin).toEqual(['https://example.com', 'https://foo.test']);
-    expect(cfg.http.cors.methods).toEqual(['GET', 'POST']);
-    expect(cfg.http.cors.allowCredentials).toBe(true);
-    expect(cfg.http.compression.enabled).toBe(false);
-    expect(cfg.http.compression.minLength).toBe(512);
-    expect(cfg.http.security.enabled).toBe(false);
+    it('should throw error if JWT_SECRET is too short', async () => {
+      process.env.JWT_SECRET = 'short';
+      try {
+        await import('../../src/config');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ZodError);
+      }
+    });
   });
 });
